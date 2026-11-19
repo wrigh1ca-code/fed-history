@@ -58,6 +58,7 @@ html, body { margin: 0; background: var(--color-bg); }
     },
     calc(id, spec) { calcs[id] = spec; calcOrder.push(id); },
     draw(name, fn) { draws[name] = fn; },
+    redraw(name) { const fn = draws[name]; if (fn) document.querySelectorAll(`[data-draw="${name}"]`).forEach((el) => { try { fn(el); } catch (e) { console.error(e); } }); },
   };
   function runDraws() {
     Object.entries(draws).forEach(([name, fn]) => {
@@ -91,6 +92,9 @@ html, body { margin: 0; background: var(--color-bg); }
 .ix .chart svg { display: block; width: 100%; overflow: visible; }
 .ix .chart text { font-size: 11px; fill: var(--cds-text-secondary); font-family: var(--font-anthropic-sans); }
 .ix .chart .lbl-strong { fill: var(--color-fg); }
+.ix .seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: 8px; overflow: hidden; margin: 0 0 var(--cds-gap-sm); }
+.ix .seg button { font: 13px var(--font-anthropic-sans); padding: 6px 12px; border: 0; background: transparent; color: var(--cds-text-secondary); cursor: pointer; }
+.ix .seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
 .ix .chart .halo { paint-order: stroke; stroke: var(--color-panel); stroke-width: 3px; stroke-linejoin: round; }
 .ix .chart .lbl-brk { fill: var(--color-fg); font-weight: 600; }
 .ix .axis path, .ix .axis line { stroke: var(--cds-chart-axis); }
@@ -170,9 +174,10 @@ html, body { margin: 0; background: var(--color-bg); }
 
   <section class="card" id="banks">
     <h2>Bank failures per year</h2>
-    <p class="sub">Banks closed each year, on a compressed scale so both the thousands of the early 1930s and the handful of recent years stay readable. Through 1933 the count is bank suspensions (temporary or permanent); from 1934, when federal deposit insurance began, it is FDIC-recorded failures. No national count exists for the Free Banking Era.</p>
-    <div class="legend"><span><i class="sw sw-brk"></i>Period boundary</span><span><i class="sw" style="width:14px;height:0;border-top:1px dotted var(--cds-text-secondary);border-radius:0"></i>FDIC created, 1934</span></div>
-    <div class="chart" id="bank-chart" data-draw="banks" data-source="bank_failures regimes" style="min-height:330px"></div>
+    <p class="sub">Banks closed each year. Horizontal lines show each period's yearly average. "Actual counts" draws bars to true scale; "Compressed scale" stretches the low end so years with only a handful of failures stay visible. Through 1933 the count is bank suspensions (temporary or permanent); from 1934, when federal deposit insurance began, it is FDIC-recorded failures. No national count exists for the Free Banking Era.</p>
+    <div class="seg" id="bank-scale" role="group" aria-label="Bank failures scale"><button type="button" data-scale="linear" aria-pressed="true">Actual counts</button><button type="button" data-scale="log" aria-pressed="false">Compressed scale</button></div>
+    <div class="legend"><span><i class="sw" style="width:14px;height:0;border-top:2px solid var(--color-fg);border-radius:0"></i>Period average per year</span><span><i class="sw sw-brk"></i>Period boundary</span><span><i class="sw" style="width:14px;height:0;border-top:1px dotted var(--cds-text-secondary);border-radius:0"></i>FDIC created, 1934</span></div>
+    <div class="chart" id="bank-chart" data-draw="banks" data-source="bank_failures regimes regime_stats" style="min-height:340px"></div>
     <h3>Pre-Fed recessions with and without a major banking panic</h3>
     <p class="sub">Andrew Jalil's (2015) averages for 1825–1929 downturns. His seven major nationwide panics: 1833, 1837, 1839, 1857, 1873, 1893 and 1907.</p>
     <div class="callouts" id="panic-callouts">
@@ -609,26 +614,37 @@ dash.draw('banks', (el) => {
   if (s.status !== 'ok' || !R) { IX.fail(el, s.status !== 'ok' ? s : dash.data('regimes')); return; }
   el.replaceChildren();
   const data = s.data.map((r) => ({ year: +r.year, v: +r.failures, series: r.series, partial: r.partial_year === 'yes' }));
-  const W = el.clientWidth || 600, narrow = W < 560, H = narrow ? 300 : 340;
-  const m = { t: 34, r: 8, b: 30, l: 44 };
+  const linear = (IX.bankScale || 'linear') === 'linear';
+  const W = el.clientWidth || 600, narrow = W < 560, H = narrow ? 340 : 440;
+  const m = { t: 34, r: 8, b: 30, l: 48 };
   const x = d3.scaleLinear().domain([1837, 2027]).range([m.l, W - m.r]);
-  const y = d3.scaleSymlog().constant(1).domain([0, 5000]).range([H - m.b, m.t]);
+  const vmax = d3.max(data, (d) => d.v);
+  const y = linear ? d3.scaleLinear().domain([0, vmax * 1.08]).nice().range([H - m.b, m.t]) : d3.scaleSymlog().constant(1).domain([0, 5000]).range([H - m.b, m.t]);
   const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img')
-    .attr('aria-label', 'Bar chart of US bank failures per year 1864 to 2026 on a compressed scale, colored by period');
-  const ticks = [0, 1, 10, 100, 1000, 5000];
+    .attr('aria-label', `Bar chart of US bank failures per year 1864 to 2026 on ${linear ? 'an actual-count' : 'a compressed'} scale, colored by period, with each period's yearly average`);
+  const ticks = linear ? y.ticks(narrow ? 4 : 8) : [0, 1, 10, 100, 1000, 5000];
   svg.append('g').attr('class', 'grid').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues(ticks).tickSize(-(W - m.l - m.r)).tickFormat(''));
   svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues(ticks).tickFormat(d3.format(','))).call((g) => g.select('.domain').remove());
   IX.timeAxis(svg, x, H - m.b, narrow);
   svg.append('rect').attr('x', x(1837)).attr('width', x(1864) - x(1837)).attr('y', m.t).attr('height', H - m.b - m.t).style('fill', 'var(--color-fg)').style('opacity', 0.05);
-  svg.append('text').attr('x', (x(1837) + x(1864)) / 2).attr('y', y(30)).attr('text-anchor', 'middle').text(narrow ? 'no data' : 'No national count');
+  svg.append('text').attr('x', (x(1837) + x(1864)) / 2).attr('y', linear ? (m.t + H - m.b) / 2 : y(30)).attr('text-anchor', 'middle').text(narrow ? 'no data' : 'No national count');
   const bw = Math.max(1, (x(1838) - x(1837)) - (narrow ? 0.4 : 1));
   svg.append('g').selectAll('rect').data(data).join('rect')
     .attr('x', (d) => x(d.year)).attr('width', bw).attr('y', (d) => y(d.v)).attr('height', (d) => Math.max(0, y(0) - y(d.v)))
     .style('fill', (d) => { const r = R.ofYear(d.year); return r ? r.color : 'var(--cds-text-secondary)'; }).style('opacity', (d) => (d.partial ? 0.5 : 1));
   IX.periods(svg, x, R, m.t - 8, H - m.b, true);
   svg.append('line').attr('class', 'brk-minor').attr('x1', x(IX.FDIC)).attr('x2', x(IX.FDIC)).attr('y1', m.t).attr('y2', H - m.b);
-  svg.append('text').attr('class', 'halo').attr('x', x(IX.FDIC) + 3).attr('y', m.t + 12).text('FDIC');
-  const thr = narrow ? 400 : 120;
+  const st = dash.data('regime_stats');
+  if (st.status === 'ok' && st.data) {
+    st.data.filter((r) => r.bank_fail_per_year !== null && r.bank_years).forEach((r) => {
+      const [a, b] = r.bank_years.split('–').map(Number);
+      const yy = y(r.bank_fail_per_year);
+      svg.append('line').attr('x1', x(a)).attr('x2', x(b + 1)).attr('y1', yy).attr('y2', yy).style('stroke', 'var(--color-fg)').style('stroke-width', 2);
+      svg.append('text').attr('class', 'lbl-strong halo').attr('x', (x(a) + x(b + 1)) / 2).attr('y', yy - 6).attr('text-anchor', 'middle')
+        .style('font-weight', 600).text(`avg ${d3.format(',')(r.bank_fail_per_year)}/yr`);
+    });
+  }
+  const thr = linear ? (narrow ? 1000 : 400) : (narrow ? 400 : 120);
   const labs = data.filter((d) => d.v >= thr && data.every((o) => Math.abs(o.year - d.year) > 6 || o.v <= d.v));
   svg.append('g').selectAll('text').data(labs).join('text').attr('class', 'lbl-strong')
     .attr('x', (d) => x(d.year) + bw / 2).attr('y', (d) => y(d.v) - 4).attr('text-anchor', 'middle').text((d) => `${d.year}: ${d3.format(',')(d.v)}`);
@@ -722,5 +738,14 @@ dash.draw('eratable', (tb) => {
   <p>Sources: Federal Reserve Bank of Minneapolis (CPI 1800–); NBER Business Cycle Dating Committee; Davis (2006, J. Econ. History); NBER Macrohistory manufacturing index and Fed industrial production via FRED; Historical Statistics of the United States, series X-741; FDIC via FRED; Jalil (2015, AEJ: Macroeconomics). Data as of November 2026.</p>
 </footer>
 </main>
+<script>
+document.querySelectorAll('#bank-scale button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    IX.bankScale = btn.dataset.scale;
+    document.querySelectorAll('#bank-scale button').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+    dash.redraw('banks');
+  });
+});
+</script>
 </body>
 </html>
