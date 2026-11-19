@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Before the Fed, the Fed before WWII, and the Fed after WWII</title>
+<meta name="description" content="US inflation, recessions and bank failures, 1837-2026, compared across three monetary periods.">
+<style>
+:root {
+  color-scheme: light;
+  --color-fg: #0b0b0b; --color-fg-muted: #52514e; --color-bg: #f9f9f7; --color-panel: #fcfcfb; --color-border-line: rgba(11,11,11,0.10);
+  --cds-text-secondary: #52514e; --cds-chart-axis: #c3c2b7; --cds-chart-grid: #e1e0d9;
+  --cds-surface-popover: #ffffff; --cds-border: rgba(11,11,11,0.12); --cds-shadow-popover: 0 4px 16px rgba(0,0,0,0.12);
+  --font-anthropic-sans: system-ui, -apple-system, "Segoe UI", sans-serif; --font-anthropic-serif: Georgia, "Times New Roman", serif;
+  --cds-font-size-caption: 13px; --cds-font-size-body: 15px; --cds-font-size-heading: 18px; --cds-font-size-title: 30px; --cds-font-weight-medium: 600;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 12px; --cds-gap-lg: 20px; --cds-gap-xl: 28px;
+  --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 20px; --cds-radius: 10px;
+  --ix-r0: #eb6834; --ix-r1: #1baf7a; --ix-r2: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-fg: #f0efec; --color-fg-muted: #c3c2b7; --color-bg: #0d0d0d; --color-panel: #1a1a19; --color-border-line: rgba(255,255,255,0.10);
+    --cds-text-secondary: #c3c2b7; --cds-chart-axis: #383835; --cds-chart-grid: #2c2c2a;
+    --cds-surface-popover: #262624; --cds-border: rgba(255,255,255,0.14); --cds-shadow-popover: 0 4px 16px rgba(0,0,0,0.5);
+    --ix-r0: #d95926; --ix-r1: #199e70; --ix-r2: #3987e5;
+  }
+}
+html, body { margin: 0; background: var(--color-bg); }
+.site { max-width: 1180px; margin: 0 auto; padding: 28px 20px 48px; }
+.site-foot { margin-top: 32px; font: 13px/1.5 var(--font-anthropic-sans); color: var(--cds-text-secondary); }
+.site-foot a, .ix a { color: var(--ix-r2); }
+@media print { .card { break-inside: avoid; } }
+</style>
+<script src="vendor/d3.min.js"></script>
+<script>
+// Minimal stand-in for the dashboard runtime: loads the CSVs in /data, computes derived tables, and draws charts.
+(function () {
+  const FILES = ['cpi', 'eras', 'regimes', 'contractions', 'output_annual', 'bank_failures', 'panic_severity'];
+  const raw = {}, calcs = {}, calcOrder = [], computed = {}, draws = {};
+  let loaded = false, failed = false;
+  const status = (id) => failed ? { status: 'error', data: [] } : !loaded ? { status: 'loading', data: [] } : null;
+  function compute(id) {
+    if (id in computed) return computed[id];
+    const c = calcs[id];
+    const args = c.inputs.map((i) => window.dash.data(i).data);
+    computed[id] = c.fn(...args);
+    return computed[id];
+  }
+  window.dash = {
+    colors: ['var(--ix-r2)', 'var(--ix-r0)', 'var(--ix-r1)'],
+    data(id) {
+      const s = status(id); if (s) return s;
+      if (id in raw) return { status: 'ok', data: raw[id] };
+      if (id in calcs) return { status: 'ok', data: compute(id) };
+      return { status: 'missing', data: [] };
+    },
+    calc(id, spec) { calcs[id] = spec; calcOrder.push(id); },
+    draw(name, fn) { draws[name] = fn; },
+  };
+  function runDraws() {
+    Object.entries(draws).forEach(([name, fn]) => {
+      document.querySelectorAll(`[data-draw="${name}"]`).forEach((el) => {
+        try { fn(el); } catch (e) { console.error('draw ' + name, e); }
+      });
+    });
+  }
+  window.addEventListener('DOMContentLoaded', () => {
+    runDraws();
+    Promise.all(FILES.map((f) => d3.csv(`data/${f}.csv`).then((rows) => { raw[f] = rows; })))
+      .then(() => { loaded = true; runDraws(); })
+      .catch((e) => { console.error(e); failed = true; runDraws(); });
+    let t, lastW = window.innerWidth;
+    window.addEventListener('resize', () => {
+      clearTimeout(t);
+      t = setTimeout(() => { if (window.innerWidth !== lastW) { lastW = window.innerWidth; runDraws(); } }, 150);
+    });
+  });
+})();
+</script>
+<style>
+.ix { display: flex; flex-direction: column; gap: var(--cds-gap-xl); font-family: var(--font-anthropic-sans); color: var(--color-fg); }
+.ix h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0 0 var(--cds-gap-sm); }
+.ix h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0 0 var(--cds-gap-xs); }
+.ix h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: var(--cds-gap-lg) 0 var(--cds-gap-xs); }
+.ix .lede { font-size: var(--cds-font-size-body); margin: 0; max-width: 62em; line-height: 1.55; }
+.ix .sub { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); margin: 0 0 var(--cds-gap-sm); max-width: 64em; line-height: 1.45; }
+.ix .card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); }
+.ix .chart { position: relative; width: 100%; min-height: 200px; }
+.ix .chart svg { display: block; width: 100%; overflow: visible; }
+.ix .chart text { font-size: 11px; fill: var(--cds-text-secondary); font-family: var(--font-anthropic-sans); }
+.ix .chart .lbl-strong { fill: var(--color-fg); }
+.ix .chart .halo { paint-order: stroke; stroke: var(--color-panel); stroke-width: 3px; stroke-linejoin: round; }
+.ix .chart .lbl-brk { fill: var(--color-fg); font-weight: 600; }
+.ix .axis path, .ix .axis line { stroke: var(--cds-chart-axis); }
+.ix .grid line { stroke: var(--cds-chart-grid); }
+.ix .grid path { display: none; }
+.ix .brk { stroke: var(--color-fg); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.ix .brk-minor { stroke: var(--cds-text-secondary); stroke-width: 1; stroke-dasharray: 2 3; }
+.ix .tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); box-shadow: var(--cds-shadow-popover); border-radius: 6px; padding: 6px 8px; font-size: 12px; line-height: 1.4; color: var(--color-fg); white-space: nowrap; z-index: 5; }
+.ix .tip .muted { color: var(--cds-text-secondary); }
+.ix .legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--cds-text-secondary); margin-bottom: var(--cds-gap-sm); }
+.ix .legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ix .legend.key { font-size: var(--cds-font-size-body); color: var(--color-fg); gap: var(--cds-gap-lg); }
+.ix .legend.key .sw { width: 14px; height: 14px; }
+.ix .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.ix .sw-r0 { background: var(--ix-r0); }
+.ix .sw-r1 { background: var(--ix-r1); }
+.ix .sw-r2 { background: var(--ix-r2); }
+.ix .sw-rec { background: var(--color-fg-muted); opacity: .55; }
+.ix .sw-brk { width: 14px; height: 0; border-top: 2px dashed var(--color-fg); border-radius: 0; }
+.ix .sw-na { border: 1.5px dashed var(--cds-text-secondary); background: transparent; }
+.ix .sw-panic { background: transparent; border: 2px solid var(--color-fg); }
+.ix .dot { border-radius: 50%; }
+.ix .multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--cds-gap-md); }
+.ix .mult { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); position: relative; }
+.ix .mult .k { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); margin-bottom: 2px; }
+.ix .mult .u { font-size: 11px; color: var(--cds-text-secondary); margin-bottom: 6px; }
+.ix .tblwrap { overflow-x: auto; margin-top: var(--cds-gap-md); }
+.ix table { border-collapse: collapse; width: 100%; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+.ix th, .ix td { padding: 6px 8px; border-bottom: 1px solid var(--color-border-line); text-align: right; white-space: nowrap; }
+.ix th:first-child, .ix td:first-child { text-align: left; }
+.ix th { color: var(--cds-text-secondary); font-weight: var(--cds-font-weight-medium); vertical-align: bottom; white-space: normal; }
+.ix tr.regrow td { color: var(--color-fg); font-weight: 600; text-align: left; padding-top: 12px; border-bottom: 2px solid var(--ix-rowc, var(--color-fg)); }
+.ix .callouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--cds-gap-md); margin-top: var(--cds-gap-md); }
+.ix .callout { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); }
+.ix .callout .k { font-size: var(--cds-font-size-caption); color: var(--cds-text-secondary); }
+.ix .callout .v { font-family: var(--font-anthropic-serif); font-size: 22px; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.ix .callout .v small { font-family: var(--font-anthropic-sans); font-size: 12px; color: var(--cds-text-secondary); }
+.ix details { font-size: var(--cds-font-size-caption); color: var(--cds-text-secondary); line-height: 1.5; }
+.ix details summary { cursor: pointer; color: var(--color-fg); }
+.ix details li { margin-bottom: 4px; }
+.ix .fail { color: var(--cds-text-secondary); font-size: var(--cds-font-size-caption); padding: var(--cds-pad-md) 0; }
+</style>
+</head>
+<body>
+<main class="site">
+<div class="ix" id="top">
+  <header id="header">
+    <h1>Before the Fed, the Fed before WWII, and the Fed after WWII</h1>
+    <p class="lede" id="takeaway">Before the Federal Reserve, the economy spent <b data-draw="t0-time" data-source="regime_stats" data-field="pct_time" data-where="regime=Before the Fed">—</b>% of months in contraction and prices fell in <b data-draw="t0-defl" data-source="regime_stats" data-field="defl_share" data-where="regime=Before the Fed">—</b>% of years. Under the Fed before WWII, the average contraction cut industrial output by <b data-draw="t1-depth" data-source="regime_stats" data-field="avg_depth" data-where="regime=Fed before WWII">—</b>%, against <b data-draw="t0-depth" data-source="regime_stats" data-field="avg_depth" data-where="regime=Before the Fed">—</b>% before the Fed, and <b data-draw="t1-bank" data-source="regime_stats" data-field="bank_fail_per_year" data-where="regime=Fed before WWII">—</b> banks failed a year. After WWII, the economy spent <b data-draw="t2-time" data-source="regime_stats" data-field="pct_time" data-where="regime=Fed after WWII">—</b>% of months in contraction, contractions averaged <b data-draw="t2-months" data-source="regime_stats" data-field="avg_months" data-where="regime=Fed after WWII">—</b> months against <b data-draw="t0-months" data-source="regime_stats" data-field="avg_months" data-where="regime=Before the Fed">—</b> before the Fed, and prices rose <b data-draw="t2-infl" data-source="regime_stats" data-field="infl_avg" data-where="regime=Fed after WWII">—</b>% a year.</p>
+  </header>
+
+  <div class="legend key" id="regime-key"><span><i class="sw sw-r0"></i>Before the Fed, 1837–1913</span><span><i class="sw sw-r1"></i>Fed before WWII, 1914–1945</span><span><i class="sw sw-r2"></i>Fed after WWII, 1946–2026</span></div>
+
+  <section class="card" id="regimes">
+    <h2>Three periods side by side</h2>
+    <p class="sub">Every chart on this page uses the same three colors. Contractions are counted in the period where they began.</p>
+    <div class="chart multiples" id="regime-multiples" data-draw="regimes" data-source="regime_stats"></div>
+  </section>
+
+  <section class="card" id="inflation">
+    <h2>Annual inflation, 1837–2026</h2>
+    <p class="sub">Percent change in the annual-average consumer price level, with bars colored by period. Lighter shading marks finer monetary epochs; the grey strip under the axis marks contractions. Before 1913 these are BLS reconstructions rounded to whole index points, so small moves read as 0%.</p>
+    <div class="legend"><span><i class="sw sw-rec"></i>Contraction</span><span><i class="sw sw-brk"></i>Period boundary</span></div>
+    <div class="chart" id="infl-chart" data-draw="infl" data-source="cpi eras contractions regimes" style="min-height:380px"></div>
+  </section>
+
+  <section class="card" id="shocks">
+    <h2>Every contraction: width is its length, depth is how far output fell</h2>
+    <p class="sub">Each block spans a contraction from peak to trough, so wider blocks lasted longer. Its depth is the peak-to-trough fall in annual industrial output, measured the same way across all three periods. A dark outline marks a nationwide banking panic. Dashed outlines before 1863 have no consistent output data.</p>
+    <div class="legend"><span><i class="sw sw-panic"></i>With banking panic</span><span><i class="sw sw-na"></i>Depth not measured</span><span><i class="sw sw-brk"></i>Period boundary</span></div>
+    <div class="chart" id="cycle-chart" data-draw="cycles" data-source="contraction_depth regimes" style="min-height:360px"></div>
+
+    <h3 id="scatter-title">Length vs depth</h3>
+    <p class="sub">Each dot is one contraction; crosses mark each period's average. Top left is short and shallow, bottom right is long and deep.</p>
+    <div class="chart" id="scatter-chart" data-draw="scatter" data-source="contraction_depth regime_stats regimes" style="min-height:340px"></div>
+  </section>
+
+  <section class="card" id="banks">
+    <h2>Bank failures per year</h2>
+    <p class="sub">Banks closed each year, on a compressed scale so both the thousands of the early 1930s and the handful of recent years stay readable. Through 1933 the count is bank suspensions (temporary or permanent); from 1934, when federal deposit insurance began, it is FDIC-recorded failures. No national count exists for the Free Banking Era.</p>
+    <div class="legend"><span><i class="sw sw-brk"></i>Period boundary</span><span><i class="sw" style="width:14px;height:0;border-top:1px dotted var(--cds-text-secondary);border-radius:0"></i>FDIC created, 1934</span></div>
+    <div class="chart" id="bank-chart" data-draw="banks" data-source="bank_failures regimes" style="min-height:330px"></div>
+    <h3>Pre-Fed recessions with and without a major banking panic</h3>
+    <p class="sub">Andrew Jalil's (2015) averages for 1825–1929 downturns. His seven major nationwide panics: 1833, 1837, 1839, 1857, 1873, 1893 and 1907.</p>
+    <div class="callouts" id="panic-callouts">
+      <div class="callout"><div class="k">Output decline, peak to trough</div><div class="v"><span data-draw="ps-out-w" data-source="panic_severity" data-field="with_major_panic" data-where="measure=Output decline peak to trough">—</span>% <small>with panic vs</small> <span data-draw="ps-out-wo" data-source="panic_severity" data-field="without_major_panic" data-where="measure=Output decline peak to trough">—</span>%</div></div>
+      <div class="callout"><div class="k">Recession length</div><div class="v"><span data-draw="ps-len-w" data-source="panic_severity" data-field="with_major_panic" data-where="measure=Recession length">—</span> <small>yrs vs</small> <span data-draw="ps-len-wo" data-source="panic_severity" data-field="without_major_panic" data-where="measure=Recession length">—</span> <small>yrs</small></div></div>
+      <div class="callout"><div class="k">Recovery length</div><div class="v"><span data-draw="ps-rec-w" data-source="panic_severity" data-field="with_major_panic" data-where="measure=Recovery length">—</span> <small>yrs vs</small> <span data-draw="ps-rec-wo" data-source="panic_severity" data-field="without_major_panic" data-where="measure=Recovery length">—</span> <small>yr</small></div></div>
+    </div>
+  </section>
+
+  <section class="card" id="epochs">
+    <h2>Epoch by epoch within each period</h2>
+    <p class="sub">Dot: average annual inflation (compound); thick bar: ±1 standard deviation of yearly inflation; thin line: lowest to highest year.</p>
+    <div class="chart" id="era-range-chart" data-draw="erarange" data-source="era_inflation regimes" style="min-height:340px"></div>
+    <div class="tblwrap">
+      <table id="era-table" data-source="era_inflation" data-row-key="era">
+        <thead><tr>
+          <th data-field="era">Epoch</th>
+          <th data-field="years">Years</th>
+          <th data-field="avg_pct">Avg inflation %/yr</th>
+          <th data-field="sd_pct">Volatility (SD, pts)</th>
+          <th data-field="max_pct">Highest year %</th>
+          <th data-field="min_pct">Lowest year %</th>
+          <th data-field="deflation_share">Years with deflation %</th>
+          <th data-field="contractions" data-source="era_cycles">Contractions</th>
+          <th data-field="avg_months" data-source="era_cycles">Avg length (months)</th>
+          <th data-field="avg_depth" data-source="era_cycles">Avg output drop %</th>
+          <th data-field="pct_time" data-source="era_cycles">Time in contraction %</th>
+        </tr></thead>
+        <tbody data-draw="eratable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <details id="notes">
+    <summary>Sources, definitions and caveats</summary>
+    <ul>
+      <li><b>Periods:</b> before the Fed, 1837–1913; Fed before WWII, 1914–1945 (the Fed opened in November 1914); Fed after WWII, 1946–2026. The middle period mixes the early Fed under the gold standard, the Great Depression, the arrival of deposit insurance in 1934 and WWII; the epoch table splits it at 1934.</li>
+      <li><b>Inflation:</b> Federal Reserve Bank of Minneapolis, "Consumer Price Index, 1800–" (1967 = 100). Pre-1913 values are BLS reconstructions (Vermont farmers' prices to 1851, Hoover's CPI to 1890, Rees's cost of living to 1912). 2026 is the Minneapolis Fed's Q3-to-Q3 estimate.</li>
+      <li><b>Contraction dates:</b> NBER monthly peaks and troughs, 1857–2020; Joseph Davis's (2006) annual dates for 1836–37 and 1839–40 (treated as mid-year to mid-year). NBER has dated no contraction since April 2020.</li>
+      <li><b>Depth:</b> peak-to-trough fall in annual output, using the higher of the peak year and the year before as the peak level and the lowest year from the peak through the trough year as the trough. Output is the NBER Macrohistory manufacturing production index (1863–1918) and the annual average of the Fed's industrial production index (1919 on). Annual data on both sides keeps the comparison fair: monthly data would make post-1919 drops look deeper just by catching short dips (Christina Romer's measurement critique). Annual data understates short contractions, so several pre-1914 ones show 0%; contractions before 1863 are not measured.</li>
+      <li><b>Banking panics:</b> Jalil (2015), plus the 1930–33 panics and the 2008 financial crisis.</li>
+      <li><b>Bank failures:</b> 1864–1933, bank suspensions from Historical Statistics of the United States, series X-741 (includes banks that later reopened; pre-1892 figures are less complete). 1934–2026, FDIC failures of all insured institutions (FRED BKFTTLA641N), which include savings institutions in the 1980s savings-and-loan crisis; 2021–22 are entered as 0 (FRED shows no value); 2026 is year to date. Counts are not scaled by the number of banks.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+window.IX = {
+  fmt1: d3.format('.1f'),
+  FDIC: 1934,
+  NOW: 2026 + 10 / 12,
+  short: { 'Free Banking Era': 'Free Banking', 'National Banking Era': 'National Banking', 'Early Fed & gold standard': 'Early Fed', 'Depression & WWII': 'Depr. & WWII', 'Bretton Woods': 'Bretton Woods', 'Great Inflation': 'Great Infl.', 'Great Moderation': 'Moderation', 'Post-2008': 'Post-2008' },
+  regShort: { 'Before the Fed': 'Before the Fed', 'Fed before WWII': 'Fed pre-WWII', 'Fed after WWII': 'Fed post-WWII' },
+  setColors(root) {
+    const c = dash.colors || [];
+    root.style.setProperty('--ix-r0', c[1] || '#eb6834');
+    root.style.setProperty('--ix-r1', c[2] || '#1baf7a');
+    root.style.setProperty('--ix-r2', c[0] || '#2a78d6');
+  },
+  // regime helper from the regimes dataset
+  reg() {
+    const d = dash.data('regimes');
+    if (d.status !== 'ok' || !d.data || !d.data.length) return null;
+    const rows = d.data.map((r, i) => ({ name: r.regime, s: +r.start_year, e: +r.end_year, color: `var(--ix-r${i})` }));
+    return {
+      rows,
+      color: (name) => (rows.find((r) => r.name === name) || { color: 'var(--cds-text-secondary)' }).color,
+      ofYear: (y) => rows.find((r) => y >= r.s && y < r.e + 1) || null,
+      breaks: rows.slice(1).map((r) => r.s),
+    };
+  },
+  tip(el) {
+    const t = document.createElement('div');
+    t.className = 'tip'; t.hidden = true; el.appendChild(t);
+    return {
+      show(lines, x, y) {
+        t.replaceChildren(...lines.map(([txt, muted]) => { const d = document.createElement('div'); if (muted) d.className = 'muted'; d.textContent = txt; return d; }));
+        t.hidden = false;
+        const w = el.clientWidth, tw = t.offsetWidth;
+        let left = x + 12; if (left + tw > w) left = x - tw - 12; if (left < 0) left = 0;
+        t.style.left = left + 'px'; t.style.top = Math.max(0, y - 10) + 'px';
+      },
+      hide() { t.hidden = true; }
+    };
+  },
+  fail(el, s) {
+    el.replaceChildren();
+    if (s && (s.status === 'error' || s.status === 'missing')) { const d = document.createElement('div'); d.className = 'fail'; d.textContent = 'Failed to load'; el.appendChild(d); }
+    else el.textContent = '—';
+  },
+  // period header band + boundary lines on a time axis
+  periods(svg, x, R, yTop, yBottom, withHeader) {
+    R.rows.forEach((r) => {
+      const x0 = x(Math.max(r.s, x.domain()[0])), x1 = x(Math.min(r.e + 1, x.domain()[1]));
+      if (withHeader) {
+        svg.append('rect').attr('x', x0).attr('width', x1 - x0).attr('y', yTop - 6).attr('height', 4).style('fill', r.color);
+        const t = svg.append('text').attr('class', 'lbl-strong').attr('x', (x0 + x1) / 2).attr('y', yTop - 10).attr('text-anchor', 'middle').text(r.name);
+        if (t.node().getComputedTextLength() > x1 - x0 - 4) t.text(IX.regShort[r.name] || r.name);
+        if (t.node().getComputedTextLength() > x1 - x0 - 4) t.text('');
+      }
+    });
+    R.breaks.forEach((b) => svg.append('line').attr('class', 'brk').attr('x1', x(b)).attr('x2', x(b)).attr('y1', yTop - 6).attr('y2', yBottom));
+  },
+  timeAxis(svg, x, y0, narrow) {
+    svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${y0})`)
+      .call(d3.axisBottom(x).tickValues(narrow ? [1850, 1900, 1950, 2000] : d3.range(1840, 2027, 20)).tickFormat(d3.format('d')).tickSize(4)).call((g) => g.select('.domain').remove());
+  }
+};
+// colors come from CSS variables (light and dark)
+
+dash.calc('contraction_depth', {
+  title: 'Contractions with depth and period',
+  description: 'Each contraction with its peak-to-trough fall in annual output (manufacturing index to 1918, Fed industrial production from 1919) and the period in which it began.',
+  inputs: ['contractions', 'output_annual', 'regimes'],
+  fn: (contractions, output_annual, regimes) => {
+    const out = new Map(output_annual.map((r) => [+r.year, { v: +r.output_index, s: r.series }]));
+    return contractions.map((c) => {
+      const py = +String(c.peak).slice(0, 4), ty = +String(c.trough).slice(0, 4);
+      const base = out.get(py);
+      let depth = null;
+      if (base) {
+        const pk = [py - 1, py].map((y) => out.get(y)).filter((o) => o && o.s === base.s).map((o) => o.v);
+        const tr = d3.range(py, ty + 1).map((y) => out.get(y)).filter((o) => o && o.s === base.s).map((o) => o.v);
+        depth = Math.round(Math.min(0, (d3.min(tr) / d3.max(pk) - 1) * 100) * 10) / 10;
+      }
+      const pt = +c.peak_t;
+      const reg = regimes.find((r) => pt >= +r.start_year && pt < +r.end_year + 1);
+      return {
+        peak: String(c.peak), trough: String(c.trough), peak_t: pt, trough_t: +c.trough_t,
+        months: c.months ? +c.months : Math.round((+c.trough_t - pt) * 12), months_approx: !c.months,
+        name: c.name || '', banking_panic: c.banking_panic || '', dating: c.dating,
+        depth_pct: depth, depth_basis: base ? base.s : 'not measured', regime: reg ? reg.regime : '',
+      };
+    });
+  },
+});
+
+dash.calc('regime_stats', {
+  title: 'Statistics by period',
+  description: 'Inflation, contraction and bank-failure statistics for each period. Contractions count in the period where they began; time in contraction runs through Oct 2026.',
+  inputs: ['regimes', 'cpi', 'contraction_depth', 'bank_failures'],
+  fn: (regimes, cpi, contraction_depth, bank_failures) => {
+    const nowT = 2026 + 10 / 12;
+    const byYear = new Map(cpi.map((r) => [+r.year, r]));
+    const banks = new Map(bank_failures.map((r) => [+r.year, +r.failures]));
+    return regimes.map((g) => {
+      const s = +g.start_year, e = +g.end_year, en = Math.min(e + 1, nowT);
+      const vals = cpi.filter((r) => +r.year >= s && +r.year <= e).map((r) => +r.inflation_pct);
+      const avg = (Math.pow(+byYear.get(e).cpi_1967_100 / +byYear.get(s - 1).cpi_1967_100, 1 / (e - s + 1)) - 1) * 100;
+      let overlap = 0; const started = [];
+      contraction_depth.forEach((c) => {
+        overlap += Math.max(0, Math.min(c.trough_t, en) - Math.max(c.peak_t, s));
+        if (c.peak_t >= s && c.peak_t < en) started.push(c);
+      });
+      const measured = started.filter((c) => c.depth_pct !== null);
+      const by = d3.range(s, e + 1).filter((y) => banks.has(y));
+      return {
+        regime: g.regime, years: s + '–' + e,
+        infl_avg: Math.round(avg * 100) / 100,
+        infl_sd: Math.round(d3.deviation(vals) * 10) / 10,
+        defl_share: Math.round((vals.filter((v) => v < 0).length / vals.length) * 100),
+        pct_time: Math.round((overlap / (en - s)) * 1000) / 10,
+        contractions: started.length,
+        avg_months: started.length ? Math.round(d3.mean(started, (c) => c.months) * 10) / 10 : null,
+        avg_depth: measured.length ? Math.round(d3.mean(measured, (c) => c.depth_pct) * 10) / 10 : null,
+        depth_n: measured.length,
+        bank_fail_per_year: by.length ? Math.round(d3.mean(by, (y) => banks.get(y))) : null,
+        bank_years: by.length ? d3.min(by) + '–' + d3.max(by) : '',
+      };
+    });
+  },
+});
+
+dash.calc('era_inflation', {
+  title: 'Inflation statistics by epoch',
+  description: 'Compound average, standard deviation, extremes and share of deflation years of annual CPI inflation within each epoch.',
+  inputs: ['cpi', 'eras'],
+  fn: (cpi, eras) => {
+    const byYear = new Map(cpi.map((r) => [+r.year, r]));
+    return eras.map((e) => {
+      const s = +e.start_year, en = +e.end_year;
+      const vals = cpi.filter((r) => +r.year >= s && +r.year <= en).map((r) => +r.inflation_pct);
+      const avg = (Math.pow(+byYear.get(en).cpi_1967_100 / +byYear.get(s - 1).cpi_1967_100, 1 / (en - s + 1)) - 1) * 100;
+      return {
+        era: e.era, regime: e.regime, years: s + '–' + en,
+        avg_pct: Math.round(avg * 100) / 100,
+        sd_pct: Math.round(d3.deviation(vals) * 10) / 10,
+        max_pct: d3.max(vals), min_pct: d3.min(vals),
+        deflation_share: Math.round((vals.filter((v) => v < 0).length / vals.length) * 100),
+      };
+    });
+  },
+});
+
+dash.calc('era_cycles', {
+  title: 'Contraction frequency and depth by epoch',
+  description: 'Contractions starting in each epoch, their average length and output drop, and the share of months spent in contraction (through Oct 2026).',
+  inputs: ['contraction_depth', 'eras'],
+  fn: (contraction_depth, eras) => {
+    const nowT = 2026 + 10 / 12;
+    return eras.map((e) => {
+      const s = +e.start_year, en = Math.min(+e.end_year + 1, nowT);
+      let overlap = 0; const started = [];
+      contraction_depth.forEach((c) => {
+        overlap += Math.max(0, Math.min(c.trough_t, en) - Math.max(c.peak_t, s));
+        if (c.peak_t >= s && c.peak_t < en) started.push(c);
+      });
+      const m = started.filter((c) => c.depth_pct !== null);
+      return {
+        era: e.era,
+        contractions: started.length,
+        avg_months: started.length ? Math.round(d3.mean(started, (c) => c.months) * 10) / 10 : null,
+        avg_depth: m.length ? Math.round(d3.mean(m, (c) => c.depth_pct) * 10) / 10 : null,
+        pct_time: Math.round((overlap / (en - s)) * 1000) / 10,
+      };
+    });
+  },
+});
+
+[['t0-time', 'Before the Fed', 'pct_time'], ['t0-defl', 'Before the Fed', 'defl_share'], ['t1-depth', 'Fed before WWII', 'avg_depth'], ['t0-depth', 'Before the Fed', 'avg_depth'],
+ ['t1-bank', 'Fed before WWII', 'bank_fail_per_year'], ['t2-time', 'Fed after WWII', 'pct_time'], ['t2-months', 'Fed after WWII', 'avg_months'],
+ ['t0-months', 'Before the Fed', 'avg_months'], ['t2-infl', 'Fed after WWII', 'infl_avg']].forEach(([n, reg, f]) => {
+  dash.draw(n, (el) => {
+    const d = dash.data('regime_stats');
+    const r = d.status === 'ok' && d.data ? d.data.find((x) => x.regime === reg) : null;
+    if (!r || r[f] === null) { el.textContent = '—'; return; }
+    const v = r[f];
+    el.textContent = f === 'avg_depth' ? IX.fmt1(Math.abs(v)) : f === 'bank_fail_per_year' || f === 'defl_share' ? String(v) : IX.fmt1(v);
+  });
+});
+
+[['ps-out-w', 'Output decline peak to trough', 'with_major_panic'], ['ps-out-wo', 'Output decline peak to trough', 'without_major_panic'],
+ ['ps-len-w', 'Recession length', 'with_major_panic'], ['ps-len-wo', 'Recession length', 'without_major_panic'],
+ ['ps-rec-w', 'Recovery length', 'with_major_panic'], ['ps-rec-wo', 'Recovery length', 'without_major_panic']].forEach(([n, m, f]) => {
+  dash.draw(n, (el) => {
+    const d = dash.data('panic_severity');
+    const r = d.status === 'ok' ? d.data.find((x) => x.measure === m) : null;
+    el.textContent = r ? String(+r[f]) : '—';
+  });
+});
+</script>
+
+<script>
+// Period small multiples
+dash.draw('regimes', (el) => {
+  const s = dash.data('regime_stats');
+  if (s.status !== 'ok' || !s.data) { IX.fail(el, s); return; }
+  el.replaceChildren();
+  const rows = s.data;
+  const colorOf = (i) => `var(--ix-r${i})`;
+  const metrics = [
+    ['pct_time', 'Time in contraction', '% of months', (v) => IX.fmt1(v) + '%'],
+    ['avg_months', 'Average contraction length', 'months', (v) => IX.fmt1(v)],
+    ['avg_depth', 'Average output drop per contraction', '% fall in annual industrial output', (v) => IX.fmt1(v) + '%'],
+    ['bank_fail_per_year', 'Bank failures per year', 'average count (1864 on)', (v) => d3.format(',')(v)],
+    ['infl_avg', 'Average inflation', '% per year, compound', (v) => IX.fmt1(v) + '%'],
+    ['infl_sd', 'Inflation volatility', 'standard deviation of yearly inflation, pts', (v) => IX.fmt1(v)],
+    ['defl_share', 'Years with falling prices', '% of years', (v) => v + '%'],
+  ];
+  metrics.forEach(([f, label, unit, fmt]) => {
+    const box = document.createElement('div'); box.className = 'mult'; box.id = 'regime-' + f;
+    const k = document.createElement('div'); k.className = 'k'; k.textContent = label;
+    const u = document.createElement('div'); u.className = 'u'; u.textContent = unit;
+    box.append(k, u); el.appendChild(box);
+    const cols = Math.max(1, Math.min(metrics.length, Math.floor((el.clientWidth + 12) / 262))), W = Math.max(180, (el.clientWidth - (cols - 1) * 12) / cols - 26), rowH = 24, H = rows.length * rowH + 2;
+    const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img').attr('aria-label', label + ' by period');
+    const meas = svg.append('g');
+    const lw = d3.max(rows, (r) => meas.append('text').text(IX.regShort[r.regime] || r.regime).node().getComputedTextLength()) + 8;
+    meas.remove();
+    const vals = rows.map((r) => r[f]).filter((v) => v !== null);
+    const lo = Math.min(0, d3.min(vals)), hi = Math.max(0, d3.max(vals));
+    const x = d3.scaleLinear().domain([lo, hi]).range([lw, W - 52]);
+    const tip = IX.tip(box);
+    rows.forEach((r, i) => {
+      const y0 = i * rowH + 2, v = r[f];
+      svg.append('text').attr('x', 0).attr('y', y0 + rowH - 10).text(IX.regShort[r.regime] || r.regime);
+      if (v === null) return;
+      svg.append('rect').attr('x', Math.min(x(0), x(v))).attr('width', Math.max(1, Math.abs(x(v) - x(0)))).attr('y', y0).attr('height', rowH - 7).attr('rx', 3).style('fill', colorOf(i));
+      svg.append('text').attr('class', 'lbl-strong').attr('x', Math.max(x(0), x(v)) + 5).attr('y', y0 + rowH - 10).text(fmt(v));
+      svg.append('rect').attr('x', 0).attr('y', y0 - 2).attr('width', W).attr('height', rowH).style('fill', 'transparent')
+        .on('pointermove', (ev) => {
+          const [px, py] = d3.pointer(ev, box);
+          const extra = f === 'avg_depth' ? [[`${r.depth_n} contractions with measured depth`, true]] : f === 'bank_fail_per_year' ? [[`Years ${r.bank_years}`, true]] : f === 'avg_months' || f === 'pct_time' ? [[`${r.contractions} contractions began`, true]] : [];
+          tip.show([[`${r.regime} (${r.years})`], [`${label}: ${fmt(v)}`, true], ...extra], px, py);
+        })
+        .on('pointerleave', () => tip.hide());
+    });
+    if (lo < 0) svg.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', 0).attr('y2', H).style('stroke', 'var(--cds-chart-axis)');
+  });
+});
+
+// Inflation chart
+dash.draw('infl', (el) => {
+  const cpi = dash.data('cpi'), eras = dash.data('eras'), con = dash.data('contractions'), R = IX.reg();
+  if (cpi.status !== 'ok' || eras.status !== 'ok' || !R) { IX.fail(el, cpi.status !== 'ok' ? cpi : eras.status !== 'ok' ? eras : dash.data('regimes')); return; }
+  el.replaceChildren();
+  const data = cpi.data.filter((r) => +r.year >= 1837).map((r) => ({ year: +r.year, v: +r.inflation_pct, cpi: +r.cpi_1967_100, basis: r.basis }));
+  const er = eras.data.map((e) => ({ era: e.era, s: +e.start_year, e: +e.end_year }));
+  const cons = con.status === 'ok' ? con.data.map((c) => ({ p: +c.peak_t, t: +c.trough_t })) : [];
+  const W = el.clientWidth || 600, narrow = W < 560;
+  const m = { t: 52, r: 8, b: 44, l: 40 };
+  const H = narrow ? 330 : 390;
+  const x = d3.scaleLinear().domain([1837, 2027]).range([m.l, W - m.r]);
+  const y = d3.scaleLinear().domain([d3.min(data, (d) => d.v) - 1, d3.max(data, (d) => d.v) + 2]).nice().range([H - m.b, m.t]);
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img')
+    .attr('aria-label', 'Bar chart of annual US inflation 1837 to 2026, colored by period: before the Fed, Fed before WWII, Fed after WWII');
+  er.forEach((e, i) => {
+    svg.append('rect').attr('x', x(e.s)).attr('width', x(e.e + 1) - x(e.s)).attr('y', m.t - 16).attr('height', H - m.b - m.t + 16)
+      .style('fill', 'var(--color-fg)').style('opacity', i % 2 ? 0.0 : 0.04);
+    const t = svg.append('text').attr('x', (x(e.s) + x(e.e + 1)) / 2).attr('y', m.t - 5).attr('text-anchor', 'middle').style('font-size', '10px').text(IX.short[e.era] || e.era);
+    if (t.node().getComputedTextLength() > x(e.e + 1) - x(e.s) - 3) t.text('');
+  });
+  svg.append('g').attr('class', 'grid').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickSize(-(W - m.l - m.r)).tickFormat(''));
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickFormat((d) => d + '%')).call((g) => g.select('.domain').remove());
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).style('stroke', 'var(--cds-chart-axis)');
+  const bw = Math.max(1, (x(1838) - x(1837)) - (narrow ? 0.4 : 1));
+  svg.append('g').selectAll('rect').data(data).join('rect')
+    .attr('x', (d) => x(d.year)).attr('width', bw)
+    .attr('y', (d) => (d.v >= 0 ? y(d.v) : y(0))).attr('height', (d) => Math.max(d.v === 0 ? 0 : 1, Math.abs(y(d.v) - y(0))))
+    .style('fill', (d) => { const r = R.ofYear(d.year); return r ? r.color : 'var(--cds-text-secondary)'; });
+  svg.append('g').selectAll('rect').data(cons).join('rect')
+    .attr('x', (d) => x(Math.max(d.p, 1837))).attr('width', (d) => Math.max(1.5, x(d.t) - x(Math.max(d.p, 1837))))
+    .attr('y', H - m.b + 22).attr('height', 8).style('fill', 'var(--color-fg-muted)').style('opacity', 0.55);
+  IX.timeAxis(svg, x, H - m.b, narrow);
+  IX.periods(svg, x, R, 22, H - m.b, true);
+  const labs = data.filter((d) => Math.abs(d.v) >= 10 && data.every((o) => Math.abs(o.year - d.year) > 4 || Math.abs(o.v) <= Math.abs(d.v)));
+  svg.append('g').selectAll('text').data(labs).join('text').attr('class', 'lbl-strong')
+    .attr('x', (d) => x(d.year) + bw / 2).attr('y', (d) => (d.v >= 0 ? y(d.v) - 4 : y(d.v) + 12)).attr('text-anchor', 'middle').text((d) => d.year);
+  const tip = IX.tip(el);
+  const hl = svg.append('rect').attr('width', bw + 2).attr('y', m.t - 16).attr('height', H - m.b - m.t + 16).style('fill', 'var(--color-fg)').style('opacity', 0).style('pointer-events', 'none');
+  svg.append('rect').attr('x', m.l).attr('y', 0).attr('width', W - m.l - m.r).attr('height', H).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px, py] = d3.pointer(ev, el);
+      const yr = Math.floor(x.invert(px * (W / el.clientWidth)));
+      const d = data.find((r) => r.year === yr);
+      if (!d) { tip.hide(); hl.style('opacity', 0); return; }
+      const e = er.find((q) => yr >= q.s && yr <= q.e), r = R.ofYear(yr);
+      const inRec = cons.some((c) => yr + 0.5 >= c.p && yr + 0.5 <= c.t + 0.08);
+      hl.attr('x', x(d.year) - 1).style('opacity', 0.08);
+      tip.show([[`${d.year}: ${d.v > 0 ? '+' : ''}${IX.fmt1(d.v)}%`], [`${r ? r.name : ''} · ${e ? e.era : ''}`, true], [`CPI ${d.cpi} (1967=100)${inRec ? ' · in contraction' : ''}`, true], [d.basis, true]], px, py);
+    })
+    .on('pointerleave', () => { tip.hide(); hl.style('opacity', 0); });
+});
+
+// Contractions: width = length, depth = output fall
+dash.draw('cycles', (el) => {
+  const s = dash.data('contraction_depth'), R = IX.reg();
+  if (s.status !== 'ok' || !s.data || !R) { IX.fail(el, s.status !== 'ok' ? s : dash.data('regimes')); return; }
+  el.replaceChildren();
+  const rows = s.data;
+  const W = el.clientWidth || 600, narrow = W < 560, H = narrow ? 310 : 370;
+  const m = { t: 34, r: 10, b: 30, l: 40 };
+  const x = d3.scaleLinear().domain([1835, 2027]).range([m.l, W - m.r]);
+  const minD = Math.min(-50, d3.min(rows, (r) => r.depth_pct ?? 0));
+  const y = d3.scaleLinear().domain([minD, 0]).range([H - m.b, m.t]);
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img')
+    .attr('aria-label', 'Timeline of US contractions since 1836 where block width is duration and block depth is the fall in industrial output, colored by period');
+  svg.append('g').attr('class', 'grid').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(''));
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat((d) => d + '%')).call((g) => g.select('.domain').remove());
+  IX.timeAxis(svg, x, H - m.b, narrow);
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).style('stroke', 'var(--cds-chart-axis)');
+  IX.periods(svg, x, R, m.t - 8, H - m.b, true);
+  const wOf = (d) => Math.max(2.5, x(d.trough_t) - x(d.peak_t));
+  const meas = rows.filter((d) => d.depth_pct !== null), na = rows.filter((d) => d.depth_pct === null);
+  svg.append('g').selectAll('rect').data(meas).join('rect')
+    .attr('x', (d) => x(d.peak_t)).attr('width', wOf).attr('y', y(0)).attr('height', (d) => Math.max(2, y(d.depth_pct) - y(0)))
+    .style('fill', (d) => R.color(d.regime)).style('opacity', 0.9)
+    .style('stroke', (d) => (d.banking_panic ? 'var(--color-fg)' : 'var(--color-panel)')).style('stroke-width', (d) => (d.banking_panic ? 2 : 0.5));
+  svg.append('g').selectAll('rect').data(na).join('rect')
+    .attr('x', (d) => x(d.peak_t)).attr('width', wOf).attr('y', y(0)).attr('height', y(-4) - y(0))
+    .style('fill', 'none').style('stroke', (d) => R.color(d.regime)).style('stroke-dasharray', '3 2').style('stroke-width', 1.5);
+  const lab = meas.filter((d) => d.depth_pct <= -14 || d.months >= 40);
+  svg.append('g').selectAll('text').data(lab).join('text').attr('class', 'lbl-strong halo')
+    .attr('x', (d) => x(d.peak_t) + wOf(d) + 3).attr('y', (d) => y(d.depth_pct) + 4)
+    .text((d) => `${d.peak.slice(0, 4)}${narrow ? '' : ' ' + d.depth_pct + '%'}`);
+  const tip = IX.tip(el);
+  const distOf = (r, sx) => (sx >= x(r.peak_t) - 3 && sx <= x(r.peak_t) + wOf(r) + 3 ? 0 : Math.min(Math.abs(sx - x(r.peak_t)), Math.abs(sx - x(r.peak_t) - wOf(r))));
+  svg.append('rect').attr('x', m.l).attr('y', 0).attr('width', W - m.l - m.r).attr('height', H).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px, py] = d3.pointer(ev, el);
+      const sx = px * (W / el.clientWidth);
+      const d = d3.least(rows, (r) => distOf(r, sx));
+      if (!d || distOf(d, sx) > 8) { tip.hide(); return; }
+      tip.show([[d.name || `Contraction from ${d.peak}`], [`Peak ${d.peak} → trough ${d.trough}`, true], [`${d.months_approx ? '≈' : ''}${d.months} months · output ${d.depth_pct === null ? 'not measured' : d.depth_pct + '%'}`, true], [d.regime, true], ...(d.banking_panic ? [[d.banking_panic, true]] : [])], px, py);
+    })
+    .on('pointerleave', () => tip.hide());
+});
+
+// Scatter: length vs depth by period
+dash.draw('scatter', (el) => {
+  const s = dash.data('contraction_depth'), g = dash.data('regime_stats'), R = IX.reg();
+  if (s.status !== 'ok' || !s.data || !R) { IX.fail(el, s.status !== 'ok' ? s : dash.data('regimes')); return; }
+  el.replaceChildren();
+  const rows = s.data.filter((d) => d.depth_pct !== null);
+  const W = el.clientWidth || 600, narrow = W < 560, H = narrow ? 300 : 340;
+  const m = { t: 12, r: 16, b: 38, l: 44 };
+  const x = d3.scaleLinear().domain([0, Math.max(70, d3.max(rows, (d) => d.months))]).range([m.l, W - m.r]);
+  const y = d3.scaleLinear().domain([Math.min(-50, d3.min(rows, (d) => d.depth_pct)), 2]).range([H - m.b, m.t]);
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img')
+    .attr('aria-label', 'Scatter plot of contraction length in months against fall in output, colored by period');
+  svg.append('g').attr('class', 'grid').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(''));
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat((d) => d + '%')).call((q) => q.select('.domain').remove());
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(narrow ? 4 : 7).tickFormat((d) => d + ' mo')).call((q) => q.select('.domain').remove());
+  svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').text('Length (months) →');
+  svg.append('text').attr('x', m.l + 4).attr('y', y(-48)).text('↓ Deeper output drop');
+  svg.append('g').selectAll('circle').data(rows).join('circle')
+    .attr('cx', (d) => x(d.months)).attr('cy', (d) => y(d.depth_pct)).attr('r', 6)
+    .style('fill', (d) => R.color(d.regime)).style('opacity', 0.85).style('stroke', 'var(--color-panel)').style('stroke-width', 2);
+  if (g.status === 'ok' && g.data) {
+    g.data.filter((r) => r.avg_depth !== null).forEach((r) => {
+      const cx = x(r.avg_months), cy = y(r.avg_depth);
+      svg.append('path').attr('d', `M${cx - 10},${cy}H${cx + 10}M${cx},${cy - 10}V${cy + 10}`).style('stroke', 'var(--color-panel)').style('stroke-width', 6);
+      svg.append('path').attr('d', `M${cx - 10},${cy}H${cx + 10}M${cx},${cy - 10}V${cy + 10}`).style('stroke', R.color(r.regime)).style('stroke-width', 3);
+    });
+  }
+  const lab = rows.filter((d) => d.depth_pct <= -14 || d.months >= 40);
+  svg.append('g').selectAll('text').data(lab).join('text')
+    .attr('x', (d) => x(d.months) + 9).attr('y', (d) => y(d.depth_pct) + 4).text((d) => d.peak.slice(0, 4));
+  const tip = IX.tip(el);
+  svg.append('rect').attr('x', m.l).attr('y', 0).attr('width', W - m.l - m.r).attr('height', H - m.b).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px, py] = d3.pointer(ev, el);
+      const sx = px * (W / el.clientWidth), sy = py * (H / el.clientHeight);
+      const d = d3.least(rows, (r) => Math.hypot(x(r.months) - sx, y(r.depth_pct) - sy));
+      if (!d || Math.hypot(x(d.months) - sx, y(d.depth_pct) - sy) > 18) { tip.hide(); return; }
+      tip.show([[d.name || `Contraction from ${d.peak}`], [`${d.months} months · output ${d.depth_pct}%`, true], [d.regime, true]], px, py);
+    })
+    .on('pointerleave', () => tip.hide());
+});
+
+// Bank failures
+dash.draw('banks', (el) => {
+  const s = dash.data('bank_failures'), R = IX.reg();
+  if (s.status !== 'ok' || !R) { IX.fail(el, s.status !== 'ok' ? s : dash.data('regimes')); return; }
+  el.replaceChildren();
+  const data = s.data.map((r) => ({ year: +r.year, v: +r.failures, series: r.series, partial: r.partial_year === 'yes' }));
+  const W = el.clientWidth || 600, narrow = W < 560, H = narrow ? 300 : 340;
+  const m = { t: 34, r: 8, b: 30, l: 44 };
+  const x = d3.scaleLinear().domain([1837, 2027]).range([m.l, W - m.r]);
+  const y = d3.scaleSymlog().constant(1).domain([0, 5000]).range([H - m.b, m.t]);
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H).attr('role', 'img')
+    .attr('aria-label', 'Bar chart of US bank failures per year 1864 to 2026 on a compressed scale, colored by period');
+  const ticks = [0, 1, 10, 100, 1000, 5000];
+  svg.append('g').attr('class', 'grid').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues(ticks).tickSize(-(W - m.l - m.r)).tickFormat(''));
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues(ticks).tickFormat(d3.format(','))).call((g) => g.select('.domain').remove());
+  IX.timeAxis(svg, x, H - m.b, narrow);
+  svg.append('rect').attr('x', x(1837)).attr('width', x(1864) - x(1837)).attr('y', m.t).attr('height', H - m.b - m.t).style('fill', 'var(--color-fg)').style('opacity', 0.05);
+  svg.append('text').attr('x', (x(1837) + x(1864)) / 2).attr('y', y(30)).attr('text-anchor', 'middle').text(narrow ? 'no data' : 'No national count');
+  const bw = Math.max(1, (x(1838) - x(1837)) - (narrow ? 0.4 : 1));
+  svg.append('g').selectAll('rect').data(data).join('rect')
+    .attr('x', (d) => x(d.year)).attr('width', bw).attr('y', (d) => y(d.v)).attr('height', (d) => Math.max(0, y(0) - y(d.v)))
+    .style('fill', (d) => { const r = R.ofYear(d.year); return r ? r.color : 'var(--cds-text-secondary)'; }).style('opacity', (d) => (d.partial ? 0.5 : 1));
+  IX.periods(svg, x, R, m.t - 8, H - m.b, true);
+  svg.append('line').attr('class', 'brk-minor').attr('x1', x(IX.FDIC)).attr('x2', x(IX.FDIC)).attr('y1', m.t).attr('y2', H - m.b);
+  svg.append('text').attr('class', 'halo').attr('x', x(IX.FDIC) + 3).attr('y', m.t + 12).text('FDIC');
+  const thr = narrow ? 400 : 120;
+  const labs = data.filter((d) => d.v >= thr && data.every((o) => Math.abs(o.year - d.year) > 6 || o.v <= d.v));
+  svg.append('g').selectAll('text').data(labs).join('text').attr('class', 'lbl-strong')
+    .attr('x', (d) => x(d.year) + bw / 2).attr('y', (d) => y(d.v) - 4).attr('text-anchor', 'middle').text((d) => `${d.year}: ${d3.format(',')(d.v)}`);
+  const tip = IX.tip(el);
+  svg.append('rect').attr('x', m.l).attr('y', 0).attr('width', W - m.l - m.r).attr('height', H).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px, py] = d3.pointer(ev, el);
+      const yr = Math.floor(x.invert(px * (W / el.clientWidth)));
+      const d = data.find((r) => r.year === yr);
+      if (!d) { tip.hide(); return; }
+      const r = R.ofYear(yr);
+      tip.show([[`${d.year}: ${d3.format(',')(d.v)} banks${d.partial ? ' (year to date)' : ''}`], [d.series, true], [r ? r.name : '', true]], px, py);
+    })
+    .on('pointerleave', () => tip.hide());
+});
+
+// Era range chart
+dash.draw('erarange', (el) => {
+  const s = dash.data('era_inflation'), R = IX.reg();
+  if (s.status !== 'ok' || !s.data || !R) { IX.fail(el, s.status !== 'ok' ? s : dash.data('regimes')); return; }
+  el.replaceChildren();
+  const rows = s.data;
+  const W = el.clientWidth || 600, rowH = 32;
+  const svg = d3.select(el).append('svg').attr('role', 'img').attr('aria-label', 'Range chart of average, volatility and extremes of annual inflation for each epoch, grouped by period');
+  const meas = svg.append('g');
+  const lw = d3.max(rows, (r) => meas.append('text').text(r.era).node().getComputedTextLength()) || 120;
+  meas.remove();
+  const narrow = W < 520;
+  const top = narrow ? 14 : 0, head = 22;
+  const nGroups = new Set(rows.map((r) => r.regime)).size;
+  const m = { t: 4, r: 40, b: 26, l: narrow ? 8 : lw + 14 };
+  const H = m.t + rows.length * (rowH + top) + nGroups * head + m.b;
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+  const x = d3.scaleLinear().domain([Math.min(-12, d3.min(rows, (r) => r.min_pct)), d3.max(rows, (r) => r.max_pct) + 1]).nice().range([m.l, W - m.r]);
+  svg.append('g').attr('class', 'grid').attr('transform', `translate(0,${m.t})`).call(d3.axisTop(x).ticks(narrow ? 4 : 8).tickSize(-(H - m.t - m.b)).tickFormat(''));
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(narrow ? 4 : 8).tickFormat((d) => d + '%')).call((g) => g.select('.domain').remove());
+  svg.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', m.t).attr('y2', H - m.b).style('stroke', 'var(--cds-chart-axis)');
+  const tip = IX.tip(el);
+  let cur = m.t, last = null;
+  rows.forEach((r) => {
+    const c = R.color(r.regime);
+    if (r.regime !== last) {
+      last = r.regime;
+      if (cur > m.t + 1) svg.append('line').attr('class', 'brk').attr('x1', 0).attr('x2', W).attr('y1', cur + 2).attr('y2', cur + 2);
+      svg.append('rect').attr('x', 0).attr('y', cur + 8).attr('width', 10).attr('height', 10).attr('rx', 2).style('fill', c);
+      svg.append('text').attr('class', 'lbl-brk').attr('x', 15).attr('y', cur + 17).text(r.regime);
+      cur += head;
+    }
+    const cy = cur + top + rowH / 2;
+    const g = svg.append('g');
+    g.append('text').attr('class', 'lbl-strong').attr('x', narrow ? m.l : m.l - 10).attr('y', narrow ? cy - 13 : cy + 4).attr('text-anchor', narrow ? 'start' : 'end').text(r.era);
+    g.append('line').attr('x1', x(r.min_pct)).attr('x2', x(r.max_pct)).attr('y1', cy).attr('y2', cy).style('stroke', c).style('stroke-width', 2).style('opacity', .6);
+    const a = r.avg_pct;
+    g.append('rect').attr('x', x(a - r.sd_pct)).attr('width', x(a + r.sd_pct) - x(a - r.sd_pct)).attr('y', cy - 6).attr('height', 12).attr('rx', 3).style('fill', c).style('opacity', .35);
+    g.append('circle').attr('cx', x(a)).attr('cy', cy).attr('r', 5).style('fill', c).style('stroke', 'var(--color-panel)').style('stroke-width', 2);
+    g.append('text').attr('x', x(r.max_pct) + 6).attr('y', cy + 4).text((a >= 0 ? '+' : '') + IX.fmt1(a) + '%');
+    g.append('rect').attr('x', 0).attr('y', cy - rowH / 2 - top).attr('width', W).attr('height', rowH + top).style('fill', 'transparent')
+      .on('pointermove', (ev) => { const [px, py] = d3.pointer(ev, el); tip.show([[r.era + ' (' + r.years + ')'], [r.regime, true], [`Average ${IX.fmt1(a)}%/yr · SD ${r.sd_pct} pts`, true], [`Range ${r.min_pct}% to ${r.max_pct}%`, true]], px, py); })
+      .on('pointerleave', () => tip.hide());
+    cur += rowH + top;
+  });
+});
+
+// Era table grouped by period
+dash.draw('eratable', (tb) => {
+  const a = dash.data('era_inflation'), b = dash.data('era_cycles');
+  tb.replaceChildren();
+  if (a.status !== 'ok' || !a.data) return;
+  const R = IX.reg();
+  const cyc = new Map((b.status === 'ok' && b.data ? b.data : []).map((r) => [r.era, r]));
+  let last = null;
+  a.data.forEach((r) => {
+    if (r.regime !== last) {
+      last = r.regime;
+      const sep = document.createElement('tr'); sep.className = 'regrow';
+      if (R) sep.style.setProperty('--ix-rowc', R.color(r.regime));
+      const td = document.createElement('td'); td.colSpan = 11; td.textContent = r.regime;
+      sep.appendChild(td); tb.appendChild(sep);
+    }
+    const c = cyc.get(r.era) || {};
+    const tr = document.createElement('tr');
+    [r.era, r.years, IX.fmt1(r.avg_pct), IX.fmt1(r.sd_pct), IX.fmt1(r.max_pct), IX.fmt1(r.min_pct), r.deflation_share,
+     c.contractions ?? '—', c.avg_months ?? '—', c.avg_depth ?? '—', c.pct_time ?? '—'].forEach((v) => { const td = document.createElement('td'); td.textContent = String(v); tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+});
+</script>
+
+<footer class="site-foot">
+  <p><b>Data files:</b> <a href="data/cpi.csv">CPI &amp; inflation</a> · <a href="data/contractions.csv">Contractions</a> · <a href="data/output_annual.csv">Industrial output</a> · <a href="data/bank_failures.csv">Bank failures</a> · <a href="data/regimes.csv">Periods</a> · <a href="data/eras.csv">Epochs</a> · <a href="data/panic_severity.csv">Panic averages</a></p>
+  <p>Sources: Federal Reserve Bank of Minneapolis (CPI 1800–); NBER Business Cycle Dating Committee; Davis (2006, J. Econ. History); NBER Macrohistory manufacturing index and Fed industrial production via FRED; Historical Statistics of the United States, series X-741; FDIC via FRED; Jalil (2015, AEJ: Macroeconomics). Data as of November 2026.</p>
+</footer>
+</main>
+</body>
+</html>

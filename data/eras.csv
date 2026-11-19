@@ -1,0 +1,9 @@
+era,start_year,end_year,regime,monetary_regime
+Free Banking Era,1837,1862,Before the Fed,State-chartered banks issue their own notes; no central bank; specie standard
+National Banking Era,1863,1913,Before the Fed,National bank notes; greenbacks; gold standard resumed 1879; no lender of last resort
+Early Fed & gold standard,1914,1933,Fed before WWII,Fed founded; WWI inflation; gold standard until 1933
+Depression & WWII,1934,1945,Fed before WWII,Dollar devalued vs gold; FDIC from 1934; wartime controls
+Bretton Woods,1946,1971,Fed after WWII,Fixed exchange rates; dollar convertible to gold for central banks
+Great Inflation,1972,1982,Fed after WWII,Gold window closed 1971; oil shocks; Volcker disinflation
+Great Moderation,1983,2007,Fed after WWII,Fiat dollar; credible low-inflation Fed
+Post-2008,2008,2026,Fed after WWII,Zero lower bound; QE; 2% target (2012); pandemic inflation
