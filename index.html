@@ -182,10 +182,10 @@ html, body { margin: 0; background: var(--color-bg); }
 
   <section class="card" id="banks">
     <h2>Bank failures per year</h2>
-    <p class="sub">Banks closed each year. Horizontal lines show each period's yearly average. Turn on "Remove Great Depression" to hide the 1914–1945 period and compare the pre-Fed and post-WWII years on their own scale. "Actual counts" draws bars to true scale; "Compressed scale" stretches the low end so years with only a handful of failures stay visible. Through 1933 the count is bank suspensions (temporary or permanent); from 1934, when federal deposit insurance began, it is FDIC-recorded failures. No national count exists for the Free Banking Era.</p>
+    <p class="sub">Banks closed each year. Horizontal lines show each period's yearly average. Turn on "Remove 1914–1945" to hide those years and compare the pre-Fed and post-WWII years on their own scale. "Actual counts" draws bars to true scale; "Compressed scale" stretches the low end so years with only a handful of failures stay visible. Through 1933 the count is bank suspensions (temporary or permanent); from 1934, when federal deposit insurance began, it is FDIC-recorded failures. No national count exists for the Free Banking Era.</p>
     <div class="controls">
       <div class="seg" id="bank-scale" role="group" aria-label="Bank failures scale"><button type="button" data-scale="linear" aria-pressed="true">Actual counts</button><button type="button" data-scale="log" aria-pressed="false">Compressed scale</button></div>
-      <button type="button" class="switch" id="bank-mid" role="switch" aria-checked="false"><span class="track"><span class="knob"></span></span>Remove Great Depression</button>
+      <button type="button" class="switch" id="bank-mid" role="switch" aria-checked="false"><span class="track"><span class="knob"></span></span>Remove 1914–1945</button>
     </div>
     <div class="legend"><span><i class="sw" style="width:14px;height:0;border-top:2px solid var(--color-fg);border-radius:0"></i>Period average per year</span><span><i class="sw sw-brk"></i>Period boundary</span><span><i class="sw" style="width:14px;height:0;border-top:1px dotted var(--cds-text-secondary);border-radius:0"></i>FDIC created, 1934</span></div>
     <div class="chart" id="bank-chart" data-draw="banks" data-source="bank_failures regimes regime_stats" style="min-height:340px"></div>
