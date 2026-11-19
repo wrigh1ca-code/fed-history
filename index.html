@@ -95,6 +95,14 @@ html, body { margin: 0; background: var(--color-bg); }
 .ix .seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: 8px; overflow: hidden; margin: 0 0 var(--cds-gap-sm); }
 .ix .seg button { font: 13px var(--font-anthropic-sans); padding: 6px 12px; border: 0; background: transparent; color: var(--cds-text-secondary); cursor: pointer; }
 .ix .seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
+.ix .controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-md) var(--cds-gap-lg); margin-bottom: var(--cds-gap-sm); }
+.ix .controls .seg { margin: 0; }
+.ix .switch { display: inline-flex; align-items: center; gap: 8px; font: 13px var(--font-anthropic-sans); color: var(--color-fg); background: none; border: 0; padding: 4px 0; cursor: pointer; }
+.ix .switch .track { width: 34px; height: 20px; border-radius: 10px; background: var(--cds-chart-axis); position: relative; transition: background .15s; flex: none; }
+.ix .switch .knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: left .15s; }
+.ix .switch[aria-checked="true"] .track { background: var(--ix-r1); }
+.ix .switch[aria-checked="true"] .knob { left: 16px; }
+.ix .switch:focus-visible { outline: 2px solid var(--ix-r2); outline-offset: 2px; border-radius: 4px; }
 .ix .chart .halo { paint-order: stroke; stroke: var(--color-panel); stroke-width: 3px; stroke-linejoin: round; }
 .ix .chart .lbl-brk { fill: var(--color-fg); font-weight: 600; }
 .ix .axis path, .ix .axis line { stroke: var(--cds-chart-axis); }
@@ -174,8 +182,11 @@ html, body { margin: 0; background: var(--color-bg); }
 
   <section class="card" id="banks">
     <h2>Bank failures per year</h2>
-    <p class="sub">Banks closed each year. Horizontal lines show each period's yearly average. "Actual counts" draws bars to true scale; "Compressed scale" stretches the low end so years with only a handful of failures stay visible. Through 1933 the count is bank suspensions (temporary or permanent); from 1934, when federal deposit insurance began, it is FDIC-recorded failures. No national count exists for the Free Banking Era.</p>
-    <div class="seg" id="bank-scale" role="group" aria-label="Bank failures scale"><button type="button" data-scale="linear" aria-pressed="true">Actual counts</button><button type="button" data-scale="log" aria-pressed="false">Compressed scale</button></div>
+    <p class="sub">Banks closed each year. Horizontal lines show each period's yearly average. Switch off "Show Fed before WWII" to compare the pre-Fed and post-WWII years on their own scale. "Actual counts" draws bars to true scale; "Compressed scale" stretches the low end so years with only a handful of failures stay visible. Through 1933 the count is bank suspensions (temporary or permanent); from 1934, when federal deposit insurance began, it is FDIC-recorded failures. No national count exists for the Free Banking Era.</p>
+    <div class="controls">
+      <div class="seg" id="bank-scale" role="group" aria-label="Bank failures scale"><button type="button" data-scale="linear" aria-pressed="true">Actual counts</button><button type="button" data-scale="log" aria-pressed="false">Compressed scale</button></div>
+      <button type="button" class="switch" id="bank-mid" role="switch" aria-checked="true"><span class="track"><span class="knob"></span></span>Show Fed before WWII (1914–1945)</button>
+    </div>
     <div class="legend"><span><i class="sw" style="width:14px;height:0;border-top:2px solid var(--color-fg);border-radius:0"></i>Period average per year</span><span><i class="sw sw-brk"></i>Period boundary</span><span><i class="sw" style="width:14px;height:0;border-top:1px dotted var(--cds-text-secondary);border-radius:0"></i>FDIC created, 1934</span></div>
     <div class="chart" id="bank-chart" data-draw="banks" data-source="bank_failures regimes regime_stats" style="min-height:340px"></div>
     <h3>Pre-Fed recessions with and without a major banking panic</h3>
@@ -613,8 +624,11 @@ dash.draw('banks', (el) => {
   const s = dash.data('bank_failures'), R = IX.reg();
   if (s.status !== 'ok' || !R) { IX.fail(el, s.status !== 'ok' ? s : dash.data('regimes')); return; }
   el.replaceChildren();
-  const data = s.data.map((r) => ({ year: +r.year, v: +r.failures, series: r.series, partial: r.partial_year === 'yes' }));
+  const all = s.data.map((r) => ({ year: +r.year, v: +r.failures, series: r.series, partial: r.partial_year === 'yes' }));
   const linear = (IX.bankScale || 'linear') === 'linear';
+  const hidden = IX.bankHideMid ? R.rows.find((r) => r.name === 'Fed before WWII') : null;
+  const isHidden = (yr) => !!hidden && yr >= hidden.s && yr <= hidden.e;
+  const data = all.filter((d) => !isHidden(d.year));
   const W = el.clientWidth || 600, narrow = W < 560, H = narrow ? 340 : 440;
   const m = { t: 34, r: 8, b: 30, l: 48 };
   const x = d3.scaleLinear().domain([1837, 2027]).range([m.l, W - m.r]);
@@ -628,15 +642,21 @@ dash.draw('banks', (el) => {
   IX.timeAxis(svg, x, H - m.b, narrow);
   svg.append('rect').attr('x', x(1837)).attr('width', x(1864) - x(1837)).attr('y', m.t).attr('height', H - m.b - m.t).style('fill', 'var(--color-fg)').style('opacity', 0.05);
   svg.append('text').attr('x', (x(1837) + x(1864)) / 2).attr('y', linear ? (m.t + H - m.b) / 2 : y(30)).attr('text-anchor', 'middle').text(narrow ? 'no data' : 'No national count');
+  if (hidden) {
+    svg.append('rect').attr('x', x(hidden.s)).attr('width', x(hidden.e + 1) - x(hidden.s)).attr('y', m.t).attr('height', H - m.b - m.t).style('fill', 'var(--color-fg)').style('opacity', 0.05);
+    const cx = (x(hidden.s) + x(hidden.e + 1)) / 2, cy = (m.t + H - m.b) / 2;
+    svg.append('text').attr('x', cx).attr('y', cy - 6).attr('text-anchor', 'middle').text('Hidden');
+    if (!narrow) svg.append('text').attr('x', cx).attr('y', cy + 8).attr('text-anchor', 'middle').text(`${hidden.s}–${hidden.e}`);
+  }
   const bw = Math.max(1, (x(1838) - x(1837)) - (narrow ? 0.4 : 1));
   svg.append('g').selectAll('rect').data(data).join('rect')
     .attr('x', (d) => x(d.year)).attr('width', bw).attr('y', (d) => y(d.v)).attr('height', (d) => Math.max(0, y(0) - y(d.v)))
     .style('fill', (d) => { const r = R.ofYear(d.year); return r ? r.color : 'var(--cds-text-secondary)'; }).style('opacity', (d) => (d.partial ? 0.5 : 1));
   IX.periods(svg, x, R, m.t - 8, H - m.b, true);
-  svg.append('line').attr('class', 'brk-minor').attr('x1', x(IX.FDIC)).attr('x2', x(IX.FDIC)).attr('y1', m.t).attr('y2', H - m.b);
+  if (!isHidden(IX.FDIC)) svg.append('line').attr('class', 'brk-minor').attr('x1', x(IX.FDIC)).attr('x2', x(IX.FDIC)).attr('y1', m.t).attr('y2', H - m.b);
   const st = dash.data('regime_stats');
   if (st.status === 'ok' && st.data) {
-    st.data.filter((r) => r.bank_fail_per_year !== null && r.bank_years).forEach((r) => {
+    st.data.filter((r) => r.bank_fail_per_year !== null && r.bank_years && !(hidden && r.regime === hidden.name)).forEach((r) => {
       const [a, b] = r.bank_years.split('–').map(Number);
       const yy = y(r.bank_fail_per_year);
       svg.append('line').attr('x1', x(a)).attr('x2', x(b + 1)).attr('y1', yy).attr('y2', yy).style('stroke', 'var(--color-fg)').style('stroke-width', 2);
@@ -644,7 +664,7 @@ dash.draw('banks', (el) => {
         .style('font-weight', 600).text(`avg ${d3.format(',')(r.bank_fail_per_year)}/yr`);
     });
   }
-  const thr = linear ? (narrow ? 1000 : 400) : (narrow ? 400 : 120);
+  const thr = linear ? (narrow ? Math.min(1000, vmax * 0.6) : Math.min(400, vmax * 0.25)) : (narrow ? 400 : 120);
   const labs = data.filter((d) => d.v >= thr && data.every((o) => Math.abs(o.year - d.year) > 6 || o.v <= d.v));
   svg.append('g').selectAll('text').data(labs).join('text').attr('class', 'lbl-strong')
     .attr('x', (d) => x(d.year) + bw / 2).attr('y', (d) => y(d.v) - 4).attr('text-anchor', 'middle').text((d) => `${d.year}: ${d3.format(',')(d.v)}`);
@@ -739,6 +759,14 @@ dash.draw('eratable', (tb) => {
 </footer>
 </main>
 <script>
+document.querySelectorAll('#bank-mid').forEach((sw) => {
+  sw.addEventListener('click', () => {
+    const show = sw.getAttribute('aria-checked') !== 'true';
+    sw.setAttribute('aria-checked', String(show));
+    IX.bankHideMid = !show;
+    dash.redraw('banks');
+  });
+});
 document.querySelectorAll('#bank-scale button').forEach((btn) => {
   btn.addEventListener('click', () => {
     IX.bankScale = btn.dataset.scale;
